@@ -1,0 +1,11 @@
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+equipment
+server
+
+# Editor
+.vscode
