@@ -6,21 +6,22 @@
 #include <string.h>
 #include <unistd.h>
 
-typedef struct slot
+typedef struct equipment
 {
   int id;
-  int available;
-} slot;
+  int installed;
+  struct sockaddr *address;
+} equipment;
 
 int equipmentCount = 0;
-slot slots[MAX_EQUIPMENT_NUMBER];
+equipment equipments[MAX_EQUIPMENT_NUMBER];
 
-void initializeSlots()
+void initializeEquipments()
 {
   for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
   {
-    slots[i].available = 1;
-    slots[i].id = i + 1;
+    equipments[i].installed = 0;
+    equipments[i].id = i + 1;
   }
 }
 
@@ -46,15 +47,16 @@ response resolveHandler(char *message)
   return response;
 }
 
-response addNewEquipment()
+response addNewEquipment(struct sockaddr *clientAddress)
 {
   int newId;
   for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
   {
-    if (slots[i].available)
+    if (!equipments[i].installed)
     {
-      newId = slots[i].id;
-      slots[i].available = 0;
+      newId = equipments[i].id;
+      equipments[i].installed = 1;
+      equipments[i].address = clientAddress;
       equipmentCount++;
       break;
     }
@@ -70,14 +72,14 @@ response addNewEquipment()
 
 response removeEquipment(int id)
 {
-  slots[id - 1].available = 1;
+  equipments[id - 1].installed = 0;
   equipmentCount--;
 
   printf("Equipment %02d removed\n", id);
   return exitHandler("Success");
 }
 
-response handleCommands(char *buf)
+response handleCommands(char *buf, struct sockaddr *clientAddress)
 {
   char *splittedCommand = strtok(buf, " ");
   int commandId = atoi(splittedCommand);
@@ -85,7 +87,7 @@ response handleCommands(char *buf)
   switch (commandId)
   {
   case REQ_ADD:
-    return addNewEquipment();
+    return addNewEquipment(clientAddress);
   case REQ_RM:
     splittedCommand = strtok(NULL, " ");
     return removeEquipment(atoi(splittedCommand));
@@ -110,7 +112,6 @@ void *client_thread(void *data)
 {
   struct client_data *cdata = (struct client_data *)data;
   struct sockaddr *caddr = (struct sockaddr *)(&cdata->storage);
-  size_t count;
 
   char caddrstr[BUFSZ];
   addrtostr(caddr, caddrstr, BUFSZ);
@@ -120,11 +121,7 @@ void *client_thread(void *data)
     char mensagemServidorCheio[BUFSZ];
     memset(mensagemServidorCheio, 0, BUFSZ);
     sprintf(mensagemServidorCheio, "%02d %02d", ERROR, LIMIT_EXCEEDED);
-    count = send(cdata->csock, mensagemServidorCheio, strlen(mensagemServidorCheio) + 1, 0);
-    if (count != strlen(mensagemServidorCheio) + 1)
-    {
-      logexit("send");
-    }
+    sendMessage(cdata->csock, mensagemServidorCheio);
     close(cdata->csock);
     pthread_exit(EXIT_SUCCESS);
   }
@@ -137,15 +134,12 @@ void *client_thread(void *data)
   {
     memset(buf, 0, BUFSZ);
     memset(response.message, 0, BUFSZ);
-    count = recv(cdata->csock, buf, BUFSZ - 1, 0);
+
+    recv(cdata->csock, buf, BUFSZ - 1, 0);
     buf[strcspn(buf, "\n")] = 0;
 
-    response = handleCommands(buf);
-    count = send(cdata->csock, response.message, strlen(response.message) + 1, 0);
-    if (count != strlen(response.message) + 1)
-    {
-      logexit("send");
-    }
+    response = handleCommands(buf, caddr);
+    sendMessage(cdata->csock, response.message);
 
     if (response.endConnection)
     {
@@ -181,7 +175,7 @@ int main(int argc, char *argv[])
   char addrstr[BUFSZ];
   addrtostr(addr, addrstr, BUFSZ);
 
-  initializeSlots();
+  initializeEquipments();
   while (1)
   {
     struct sockaddr_storage cstorage;

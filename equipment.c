@@ -105,12 +105,9 @@ int main(int argc, char *argv[])
   char buf[BUFSZ];
   memset(buf, 0, BUFSZ);
   sprintf(buf, "%d", REQ_ADD);
-  size_t count = send(s, buf, strlen(buf) + 1, 0);
-  if (count != strlen(buf) + 1)
-  {
-    logexit("send");
-  }
+  sendMessage(s, buf);
 
+  size_t count;
   control serverCommand;
   while (1)
   {
@@ -129,11 +126,7 @@ int main(int argc, char *argv[])
     serverCommand = commandInterpreter(buf);
     if (serverCommand.send_server)
     {
-      count = send(s, serverCommand.message, strlen(buf) + 1, 0);
-      if (count != strlen(buf) + 1)
-      {
-        logexit("send");
-      }
+      sendMessage(s, serverCommand.message);
     }
     else
     {

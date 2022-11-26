@@ -92,3 +92,21 @@ int server_sockaddr_init(const char *portstr, struct sockaddr_storage *storage)
     addr4->sin_port = port;
     return 0;
 }
+
+void sendMessage(const int socket, char *msg)
+{
+    size_t count = send(socket, msg, strlen(msg) + 1, 0);
+    if (count != strlen(msg) + 1)
+    {
+        logexit("send");
+    }
+}
+
+void sendMessageTo(const int socket, char *msg, const struct sockaddr *addr)
+{
+    size_t count = sendto(socket, msg, strlen(msg) + 1, 0, addr, 16);
+    if (count != strlen(msg) + 1)
+    {
+        logexit("send");
+    }
+}
