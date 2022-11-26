@@ -4,7 +4,7 @@ equipment: equipment.c
 	gcc -Wall equipment.c common.o -o equipment
 
 server: server.c
-	gcc -Wall server.c common.o -o server
+	gcc -Wall server.c common.o -lpthread -o server
 
 common: common.c
 	gcc -Wall -c common.c
