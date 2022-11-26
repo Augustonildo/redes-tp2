@@ -12,14 +12,8 @@ common: common.c
 clean:
 	rm common.o equipment server
 
-run_server_v4:
-	./server v4 51511
+run_server:
+	./server 51511
 
-run_equipment_v4:
+run_equipment:
 	./equipment 127.0.0.1 51511
-
-run_server_v6:
-	./server v6 51511
-	
-run_equipment_v6:	
-	./equipment ::1 51511

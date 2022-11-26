@@ -42,7 +42,7 @@ void *client_thread(void *data)
 int main(int argc, char *argv[])
 {
   struct sockaddr_storage storage;
-  server_sockaddr_init(argv[1], argv[2], &storage);
+  server_sockaddr_init(argv[1], &storage);
 
   int s = socket(storage.ss_family, SOCK_STREAM, 0);
   if (s == -1)
