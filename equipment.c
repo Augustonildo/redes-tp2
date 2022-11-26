@@ -26,10 +26,12 @@ control commandInterpreter(char *command)
   {
     serverCommand.send_server = 0;
     sprintf(serverCommand.message, "Equipments A,B,C,D");
+    // todo show connected equipments
   }
-  else if (strcmp(command, "request information from") == 0)
+  else if (strncmp(command, "request information from ", strlen("request information from ")) == 0)
   {
     int recipientId = 04;
+    // todo change to read recipient id
     serverCommand.send_server = 1;
     sprintf(serverCommand.message, "%d %d %d", REQ_INF, equipmentId, recipientId);
   }
@@ -40,6 +42,44 @@ control commandInterpreter(char *command)
   }
 
   return serverCommand;
+}
+
+void handleResponse(char *response)
+{
+  char *splittedResponse = strtok(response, " ");
+  int messageId = atoi(splittedResponse);
+
+  switch (messageId)
+  {
+  case RES_ADD:
+    splittedResponse = strtok(NULL, " ");
+    int receivedId = atoi(splittedResponse);
+    if (equipmentId == 0)
+    {
+      equipmentId = receivedId;
+      printf("New ID: %02d\n", equipmentId);
+    }
+    else
+    {
+      printf("Equipment %02d", receivedId);
+    }
+    return;
+  case RES_LIST:
+    // todo something
+  case RES_INF:
+    // todo something
+  case ERROR:
+    splittedResponse = strtok(NULL, " ");
+    int errorCode = atoi(splittedResponse) - 1;
+    printf("%s\n", ERROR_MESSAGES[errorCode]);
+    return;
+  case OK:
+    // todo something
+  default:
+    break;
+  }
+
+  printf("Unknown response: %s\n", response);
 }
 
 int main(int argc, char *argv[])
@@ -80,16 +120,15 @@ int main(int argc, char *argv[])
     {
       break; // Connection terminated
     }
-    printf("%s", buf);
-    count = 0;
+    handleResponse(buf);
 
+    count = 0;
     memset(buf, 0, BUFSZ);
     fgets(buf, BUFSZ - 1, stdin);
     buf[strcspn(buf, "\n")] = 0;
     serverCommand = commandInterpreter(buf);
     if (serverCommand.send_server)
     {
-      printf("Sent server \n");
       count = send(s, serverCommand.message, strlen(buf) + 1, 0);
       if (count != strlen(buf) + 1)
       {
@@ -98,7 +137,6 @@ int main(int argc, char *argv[])
     }
     else
     {
-      printf("Didn't send server \n");
       printf("%s\n", serverCommand.message);
     }
   }

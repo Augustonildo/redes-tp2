@@ -18,6 +18,16 @@ enum COMMAND_TYPE
     OK = 8,
 };
 
+enum ERROR
+{
+    EQUIPMENT_NOT_FOUND = 1,
+    SOURCE_NOT_FOUND = 2,
+    TARGET_NOT_FOUND = 3,
+    LIMIT_EXCEEDED = 4
+};
+
+const char *ERROR_MESSAGES[] = {"Equipment not found", "Source equipment not found", "Target equipment not found", "Equipment limit exceeded"};
+
 void logexit(const char *msg);
 int addrparse(const char *addrstr, const char *portstr,
               struct sockaddr_storage *storage);

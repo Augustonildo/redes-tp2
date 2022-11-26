@@ -64,7 +64,7 @@ response addNewEquipment()
 
   char msg[BUFSZ];
   memset(msg, 0, BUFSZ);
-  sprintf(msg, "New ID: %02d\n", newId);
+  sprintf(msg, "%02d %02d\n", RES_ADD, newId);
   return resolveHandler(msg);
 }
 
@@ -117,7 +117,9 @@ void *client_thread(void *data)
 
   if (equipmentCount >= MAX_EQUIPMENT_NUMBER)
   {
-    char *mensagemServidorCheio = "Equipment limit exceeded";
+    char mensagemServidorCheio[BUFSZ];
+    memset(mensagemServidorCheio, 0, BUFSZ);
+    sprintf(mensagemServidorCheio, "%02d %02d", ERROR, LIMIT_EXCEEDED);
     count = send(cdata->csock, mensagemServidorCheio, strlen(mensagemServidorCheio) + 1, 0);
     if (count != strlen(mensagemServidorCheio) + 1)
     {
