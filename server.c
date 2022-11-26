@@ -6,6 +6,26 @@
 #include <string.h>
 #include <unistd.h>
 
+#define MAX_EQUIPMENT_NUMBER 10
+
+typedef struct slot
+{
+  int id;
+  int available;
+} slot;
+
+int equipmentCount = 0;
+slot slots[MAX_EQUIPMENT_NUMBER];
+
+void initializeSlots()
+{
+  for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
+  {
+    slots[i].available = 1;
+    slots[i].id = i + 1;
+  }
+}
+
 typedef struct response
 {
   char message[BUFSZ];
@@ -28,12 +48,42 @@ response resolveHandler(char *message)
   return response;
 }
 
+response addNewEquipment()
+{
+  int newId;
+  for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
+  {
+    if (slots[i].available)
+    {
+      newId = slots[i].id;
+      slots[i].available = 0;
+      equipmentCount++;
+      break;
+    }
+  }
+
+  printf("Equipment %02d added\n", newId);
+
+  char msg[BUFSZ];
+  memset(msg, 0, BUFSZ);
+  sprintf(msg, "New ID: %02d\n", newId);
+  return resolveHandler(msg);
+}
+
+response removeEquipment(int id)
+{
+  slots[id - 1].available = 1;
+  equipmentCount--;
+
+  printf("Equipment %02d removed\n", id);
+  return exitHandler("Success");
+}
+
 response handleCommands(char *buf)
 {
   if (strcmp(buf, "close connection") == 0)
   {
-    printf("Equipment 0X removed\n");
-    return exitHandler("Success");
+    return removeEquipment(02);
   }
 
   if (strcmp(buf, "list equipment") == 0)
@@ -61,19 +111,40 @@ void *client_thread(void *data)
 {
   struct client_data *cdata = (struct client_data *)data;
   struct sockaddr *caddr = (struct sockaddr *)(&cdata->storage);
+  size_t count;
 
   char caddrstr[BUFSZ];
   addrtostr(caddr, caddrstr, BUFSZ);
+
+  if (equipmentCount >= MAX_EQUIPMENT_NUMBER)
+  {
+    char *mensagemServidorCheio = "Equipment limit exceeded";
+    count = send(cdata->csock, mensagemServidorCheio, strlen(mensagemServidorCheio) + 1, 0);
+    if (count != strlen(mensagemServidorCheio) + 1)
+    {
+      logexit("send");
+    }
+    close(cdata->csock);
+    pthread_exit(EXIT_SUCCESS);
+  }
+
+  response response;
+  memset(response.message, 0, BUFSZ);
+
+  response = addNewEquipment();
+  count = send(cdata->csock, response.message, strlen(response.message) + 1, 0);
+  if (count != strlen(response.message) + 1)
+  {
+    logexit("send");
+  }
 
   char buf[BUFSZ];
   while (1)
   {
     memset(buf, 0, BUFSZ);
-    size_t count = recv(cdata->csock, buf, BUFSZ - 1, 0);
-    buf[strcspn(buf, "\n")] = 0;
-
-    response response;
     memset(response.message, 0, BUFSZ);
+    count = recv(cdata->csock, buf, BUFSZ - 1, 0);
+    buf[strcspn(buf, "\n")] = 0;
 
     response = handleCommands(buf);
     count = send(cdata->csock, response.message, strlen(response.message) + 1, 0);
@@ -116,6 +187,7 @@ int main(int argc, char *argv[])
   char addrstr[BUFSZ];
   addrtostr(addr, addrstr, BUFSZ);
 
+  initializeSlots();
   while (1)
   {
     struct sockaddr_storage cstorage;
@@ -127,8 +199,6 @@ int main(int argc, char *argv[])
     {
       logexit("accept");
     }
-
-    printf("Equipment 0X added\n");
 
     struct client_data *cdata = malloc(sizeof(*cdata));
     if (!cdata)
