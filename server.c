@@ -6,6 +6,51 @@
 #include <string.h>
 #include <unistd.h>
 
+typedef struct response
+{
+  char message[BUFSZ];
+  int endConnection;
+} response;
+
+response exitHandler(char *message)
+{
+  response response;
+  memset(response.message, 0, BUFSZ);
+  response.endConnection = 1;
+  return response;
+}
+
+response resolveHandler(char *message)
+{
+  response response;
+  strcpy(response.message, message);
+  response.endConnection = 0;
+  return response;
+}
+
+response handleCommands(char *buf)
+{
+  if (strcmp(buf, "close connection") == 0)
+  {
+    printf("Equipment 0X removed\n");
+    return exitHandler("Success");
+  }
+
+  if (strcmp(buf, "list equipment") == 0)
+  {
+    return resolveHandler("Equipments A,B,C,D\n");
+  }
+
+  if (strcmp(buf, "request information from 04") == 0)
+  {
+    printf("Equipment 0X not found\n");
+    return resolveHandler("Target equipment not found\n");
+  }
+
+  printf("Mensagem não identificada\n");
+  return exitHandler("ERROR");
+}
+
 struct client_data
 {
   int csock;
@@ -25,16 +70,23 @@ void *client_thread(void *data)
   {
     memset(buf, 0, BUFSZ);
     size_t count = recv(cdata->csock, buf, BUFSZ - 1, 0);
+    buf[strcspn(buf, "\n")] = 0;
 
-    memset(buf, 0, BUFSZ);
-    count = send(cdata->csock, buf, strlen(buf) + 1, 0);
-    if (count != strlen(buf) + 1)
+    response response;
+    memset(response.message, 0, BUFSZ);
+
+    response = handleCommands(buf);
+    count = send(cdata->csock, response.message, strlen(response.message) + 1, 0);
+    if (count != strlen(response.message) + 1)
     {
       logexit("send");
     }
 
-    close(cdata->csock);
-    break;
+    if (response.endConnection)
+    {
+      close(cdata->csock);
+      break;
+    }
   }
   pthread_exit(EXIT_SUCCESS);
 }
@@ -75,6 +127,8 @@ int main(int argc, char *argv[])
     {
       logexit("accept");
     }
+
+    printf("Equipment 0X added\n");
 
     struct client_data *cdata = malloc(sizeof(*cdata));
     if (!cdata)
