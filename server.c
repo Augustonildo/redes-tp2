@@ -6,8 +6,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_EQUIPMENT_NUMBER 10
-
 typedef struct slot
 {
   int id;
@@ -81,23 +79,24 @@ response removeEquipment(int id)
 
 response handleCommands(char *buf)
 {
-  if (strcmp(buf, "close connection") == 0)
-  {
-    return removeEquipment(02);
-  }
+  char *splittedCommand = strtok(buf, " ");
+  int commandId = atoi(splittedCommand);
 
-  if (strcmp(buf, "list equipment") == 0)
+  switch (commandId)
   {
-    return resolveHandler("Equipments A,B,C,D\n");
-  }
-
-  if (strcmp(buf, "request information from 04") == 0)
-  {
+  case REQ_ADD:
+    return addNewEquipment();
+  case REQ_RM:
+    splittedCommand = strtok(NULL, " ");
+    return removeEquipment(atoi(splittedCommand));
+  case REQ_INF:
     printf("Equipment 0X not found\n");
     return resolveHandler("Target equipment not found\n");
+  default:
+    break;
   }
 
-  printf("Mensagem não identificada\n");
+  printf("Unknown message: %s\n", buf);
   return exitHandler("ERROR");
 }
 
@@ -130,13 +129,6 @@ void *client_thread(void *data)
 
   response response;
   memset(response.message, 0, BUFSZ);
-
-  response = addNewEquipment();
-  count = send(cdata->csock, response.message, strlen(response.message) + 1, 0);
-  if (count != strlen(response.message) + 1)
-  {
-    logexit("send");
-  }
 
   char buf[BUFSZ];
   while (1)
