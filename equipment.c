@@ -5,6 +5,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#define MAX_TEMPERATURE 10
+
 int equipmentId = 0;
 int serverSocket;
 int equipmentsInstalled[MAX_EQUIPMENT_NUMBER];
@@ -39,13 +41,17 @@ control commandInterpreter(char *command)
       if (equipmentsInstalled[i] && equipmentId != (i + 1))
         printf("%02d ", i + 1);
     }
+    printf("\n");
   }
   else if (strncmp(command, "request information from ", strlen("request information from ")) == 0)
   {
-    int recipientId = 04;
-    // todo change to read recipient id
+    strtok(command, " ");
+    strtok(NULL, " ");
+    strtok(NULL, " ");
+    char *value = strtok(NULL, " ");
+    int destineId = atoi(value);
     serverCommand.send_server = 1;
-    sprintf(serverCommand.message, "%d %d %d", REQ_INF, equipmentId, recipientId);
+    sprintf(serverCommand.message, "%d %d %d", REQ_INF, equipmentId, destineId);
   }
   else
   {
@@ -56,13 +62,34 @@ control commandInterpreter(char *command)
   return serverCommand;
 }
 
+float getTemperature()
+{
+  return (float)rand() / (float)(RAND_MAX / MAX_TEMPERATURE);
+}
+
+void requestedInformation(int sourceId, int destineId)
+{
+  char msg[BUFSZ];
+  memset(msg, 0, BUFSZ);
+  printf("requested information\n");
+  sprintf(msg, "%02d %02d %02d %.2f", RES_INF, destineId, sourceId, getTemperature());
+  sendMessage(serverSocket, msg);
+}
+
 void handleResponse(char *response)
 {
   char *splittedResponse = strtok(response, " ");
   int messageId = atoi(splittedResponse);
+  int sourceId = 0, destineId = 0;
 
   switch (messageId)
   {
+  case REQ_RM:
+    splittedResponse = strtok(NULL, " ");
+    int removedId = atoi(splittedResponse);
+    equipmentsInstalled[removedId - 1] = 0;
+    printf("Equipment %02d removed\n", removedId);
+    return;
   case RES_ADD:
     splittedResponse = strtok(NULL, " ");
     int receivedId = atoi(splittedResponse);
@@ -85,15 +112,41 @@ void handleResponse(char *response)
       splittedResponse = strtok(NULL, " ");
     }
     return;
+  case REQ_INF:
+    splittedResponse = strtok(NULL, " ");
+    sourceId = atoi(splittedResponse);
+    splittedResponse = strtok(NULL, " ");
+    destineId = atoi(splittedResponse);
+    requestedInformation(sourceId, destineId);
+    return;
   case RES_INF:
-  // todo something
+    splittedResponse = strtok(NULL, " ");
+    sourceId = atoi(splittedResponse);
+    splittedResponse = strtok(NULL, " ");
+    destineId = atoi(splittedResponse);
+    splittedResponse = strtok(NULL, " ");
+    float temperature = atof(splittedResponse);
+    printf("Value from %02d: %.2f\n", sourceId, temperature);
+    return;
   case ERROR:
     splittedResponse = strtok(NULL, " ");
     int errorCode = atoi(splittedResponse) - 1;
     printf("%s\n", ERROR_MESSAGES[errorCode]);
     return;
   case OK:
-    // todo something
+    splittedResponse = strtok(NULL, " ");
+    int destineId = atoi(splittedResponse);
+    if (destineId != equipmentId)
+    {
+      logexit("wrong id");
+    }
+
+    splittedResponse = strtok(NULL, " ");
+    int okMessage = atoi(splittedResponse) - 1;
+    printf("%s\n", OK_MESSAGES[okMessage]);
+
+    close(serverSocket);
+    exit(EXIT_SUCCESS);
   default:
     break;
   }
@@ -114,6 +167,7 @@ void *receiveMessageThread(void *data)
 
 int main(int argc, char *argv[])
 {
+  srand(time(NULL));
   struct sockaddr_storage storage;
   addrparse(argv[1], argv[2], &storage);
 
@@ -152,10 +206,6 @@ int main(int argc, char *argv[])
     if (serverCommand.send_server)
     {
       sendMessage(serverSocket, serverCommand.message);
-    }
-    else
-    {
-      printf("%s\n", serverCommand.message);
     }
   }
 

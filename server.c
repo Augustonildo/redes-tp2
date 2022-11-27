@@ -19,6 +19,7 @@ void initializeEquipments()
   {
     equipments[i].installed = 0;
     equipments[i].id = i + 1;
+    equipments[i].socket = 0;
   }
 }
 
@@ -91,17 +92,89 @@ response addNewEquipment(int clientSocket)
 
 response removeEquipment(int id)
 {
+  char msg[BUFSZ];
+  memset(msg, 0, BUFSZ);
+  if (!equipments[id - 1].installed)
+  {
+    sprintf(msg, "%02d %02d", ERROR, EQUIPMENT_NOT_FOUND);
+    sendMessage(equipments[id - 1].socket, msg);
+    return exitHandler("Error");
+  }
+
   equipments[id - 1].installed = 0;
   equipmentCount--;
 
+  sprintf(msg, "%02d %02d %02d", OK, id, 1);
+  sendMessage(equipments[id - 1].socket, msg);
   printf("Equipment %02d removed\n", id);
+
+  for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
+  {
+    if (equipments[i].installed)
+    {
+      sprintf(msg, "%02d %02d", REQ_RM, id);
+      sendMessage(equipments[i].socket, msg);
+    }
+  }
+
   return exitHandler("Success");
+}
+
+response requestInformation(int sourceId, int destineId)
+{
+  char msg[BUFSZ];
+  memset(msg, 0, BUFSZ);
+  if (!equipments[sourceId - 1].installed)
+  {
+    printf("Equipment %02d not found\n", sourceId);
+    sprintf(msg, "%02d %02d", ERROR, SOURCE_NOT_FOUND);
+    sendMessage(equipments[sourceId - 1].socket, msg);
+    return exitHandler("Error");
+  }
+
+  if (!equipments[destineId - 1].installed)
+  {
+    printf("Equipment %02d not found\n", destineId);
+    sprintf(msg, "%02d %02d", ERROR, DESTINE_NOT_FOUND);
+    sendMessage(equipments[destineId - 1].socket, msg);
+    return exitHandler("Error");
+  }
+
+  sprintf(msg, "%02d %02d %02d", REQ_INF, sourceId, destineId);
+  sendMessage(equipments[destineId - 1].socket, msg);
+  return resolveHandler("Success");
+}
+
+response informationResult(int sourceId, int destineId, float temperature)
+{
+  char msg[BUFSZ];
+  memset(msg, 0, BUFSZ);
+  if (!equipments[sourceId - 1].installed)
+  {
+    printf("Equipment %02d not found\n", sourceId);
+    sprintf(msg, "%02d %02d", ERROR, SOURCE_NOT_FOUND);
+    sendMessage(equipments[sourceId - 1].socket, msg);
+    return exitHandler("Error");
+  }
+
+  if (!equipments[destineId - 1].installed)
+  {
+    printf("Equipment %02d not found\n", destineId);
+    sprintf(msg, "%02d %02d", ERROR, DESTINE_NOT_FOUND);
+    sendMessage(equipments[destineId - 1].socket, msg);
+    return exitHandler("Error");
+  }
+
+  sprintf(msg, "%02d %02d %02d %.2f", RES_INF, sourceId, destineId, temperature);
+  sendMessage(equipments[destineId - 1].socket, msg);
+  return resolveHandler("Success");
 }
 
 response handleCommands(char *buf, int clientSocket)
 {
   char *splittedCommand = strtok(buf, " ");
   int commandId = atoi(splittedCommand);
+  int sourceId = 0, destineId = 0;
 
   switch (commandId)
   {
@@ -111,8 +184,19 @@ response handleCommands(char *buf, int clientSocket)
     splittedCommand = strtok(NULL, " ");
     return removeEquipment(atoi(splittedCommand));
   case REQ_INF:
-    printf("Equipment 0X not found\n");
-    return resolveHandler("Target equipment not found\n");
+    splittedCommand = strtok(NULL, " ");
+    sourceId = atoi(splittedCommand);
+    splittedCommand = strtok(NULL, " ");
+    destineId = atoi(splittedCommand);
+    return requestInformation(sourceId, destineId);
+  case RES_INF:
+    splittedCommand = strtok(NULL, " ");
+    sourceId = atoi(splittedCommand);
+    splittedCommand = strtok(NULL, " ");
+    destineId = atoi(splittedCommand);
+    splittedCommand = strtok(NULL, " ");
+    float temperature = atof(splittedCommand);
+    return informationResult(sourceId, destineId, temperature);
   default:
     break;
   }
@@ -158,7 +242,6 @@ void *client_thread(void *data)
     buf[strcspn(buf, "\n")] = 0;
 
     response = handleCommands(buf, cdata->csock);
-
     if (response.endConnection)
     {
       close(cdata->csock);
