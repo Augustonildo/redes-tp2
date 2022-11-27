@@ -1,7 +1,7 @@
 all: common equipment server 
 
 equipment: equipment.c
-	gcc -Wall equipment.c common.o -o equipment
+	gcc -Wall equipment.c -lpthread common.o -o equipment
 
 server: server.c
 	gcc -Wall server.c common.o -lpthread -o server

@@ -1,8 +1,5 @@
 #include "common.h"
-#include <pthread.h>
-#include <arpa/inet.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -10,7 +7,7 @@ typedef struct equipment
 {
   int id;
   int installed;
-  struct sockaddr *address;
+  int socket;
 } equipment;
 
 int equipmentCount = 0;
@@ -47,7 +44,7 @@ response resolveHandler(char *message)
   return response;
 }
 
-response addNewEquipment(struct sockaddr *clientAddress)
+response addNewEquipment(int clientSocket)
 {
   int newId;
   for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
@@ -56,7 +53,7 @@ response addNewEquipment(struct sockaddr *clientAddress)
     {
       newId = equipments[i].id;
       equipments[i].installed = 1;
-      equipments[i].address = clientAddress;
+      equipments[i].socket = clientSocket;
       equipmentCount++;
       break;
     }
@@ -67,6 +64,15 @@ response addNewEquipment(struct sockaddr *clientAddress)
   char msg[BUFSZ];
   memset(msg, 0, BUFSZ);
   sprintf(msg, "%02d %02d\n", RES_ADD, newId);
+
+  for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
+  {
+    if (equipments[i].installed && equipments[i].id != newId)
+    {
+      sendMessage(equipments[i].socket, msg);
+    }
+  }
+
   return resolveHandler(msg);
 }
 
@@ -79,7 +85,7 @@ response removeEquipment(int id)
   return exitHandler("Success");
 }
 
-response handleCommands(char *buf, struct sockaddr *clientAddress)
+response handleCommands(char *buf, int clientSocket)
 {
   char *splittedCommand = strtok(buf, " ");
   int commandId = atoi(splittedCommand);
@@ -87,7 +93,7 @@ response handleCommands(char *buf, struct sockaddr *clientAddress)
   switch (commandId)
   {
   case REQ_ADD:
-    return addNewEquipment(clientAddress);
+    return addNewEquipment(clientSocket);
   case REQ_RM:
     splittedCommand = strtok(NULL, " ");
     return removeEquipment(atoi(splittedCommand));
@@ -138,7 +144,7 @@ void *client_thread(void *data)
     recv(cdata->csock, buf, BUFSZ - 1, 0);
     buf[strcspn(buf, "\n")] = 0;
 
-    response = handleCommands(buf, caddr);
+    response = handleCommands(buf, cdata->csock);
     sendMessage(cdata->csock, response.message);
 
     if (response.endConnection)

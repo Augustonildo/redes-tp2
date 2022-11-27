@@ -1,12 +1,21 @@
 #include "common.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
 int equipmentId = 0;
+int serverSocket;
+int equipmentsInstalled[MAX_EQUIPMENT_NUMBER];
+
+void initializeEquipments()
+{
+  for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
+  {
+    equipmentsInstalled[i] = 0;
+  }
+}
 
 typedef struct control
 {
@@ -25,8 +34,11 @@ control commandInterpreter(char *command)
   else if (strcmp(command, "list equipment") == 0)
   {
     serverCommand.send_server = 0;
-    sprintf(serverCommand.message, "Equipments A,B,C,D");
-    // todo show connected equipments
+    for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
+    {
+      if (equipmentsInstalled[i])
+        printf("%02d ", i + 1);
+    }
   }
   else if (strncmp(command, "request information from ", strlen("request information from ")) == 0)
   {
@@ -61,7 +73,8 @@ void handleResponse(char *response)
     }
     else
     {
-      printf("Equipment %02d", receivedId);
+      equipmentsInstalled[receivedId - 1] = 1;
+      printf("Equipment %02d added\n", receivedId);
     }
     return;
   case RES_LIST:
@@ -82,19 +95,30 @@ void handleResponse(char *response)
   printf("Unknown response: %s\n", response);
 }
 
+void *receiveMessageThread(void *data)
+{
+  char buf[BUFSZ];
+  while (1)
+  {
+    recv(serverSocket, buf, BUFSZ, 0);
+    handleResponse(buf);
+  }
+  pthread_exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char *argv[])
 {
   struct sockaddr_storage storage;
   addrparse(argv[1], argv[2], &storage);
 
-  int s = socket(storage.ss_family, SOCK_STREAM, 0);
-  if (s == -1)
+  serverSocket = socket(storage.ss_family, SOCK_STREAM, 0);
+  if (serverSocket == -1)
   {
     logexit("socket");
   }
 
   struct sockaddr *addr = (struct sockaddr *)(&storage);
-  if (0 != connect(s, addr, sizeof(storage)))
+  if (0 != connect(serverSocket, addr, sizeof(storage)))
   {
     logexit("connect");
   }
@@ -102,31 +126,26 @@ int main(int argc, char *argv[])
   char addrstr[BUFSZ];
   addrtostr(addr, addrstr, BUFSZ);
 
+  initializeEquipments();
+
   char buf[BUFSZ];
   memset(buf, 0, BUFSZ);
   sprintf(buf, "%d", REQ_ADD);
-  sendMessage(s, buf);
+  sendMessage(serverSocket, buf);
 
-  size_t count;
+  pthread_t receiveThread;
+  pthread_create(&receiveThread, NULL, receiveMessageThread, NULL);
+
   control serverCommand;
   while (1)
   {
-    memset(buf, 0, BUFSZ);
-    count = recv(s, buf, BUFSZ, 0);
-    if (count == 0 || strcmp(buf, "\0") == 0)
-    {
-      break; // Connection terminated
-    }
-    handleResponse(buf);
-
-    count = 0;
     memset(buf, 0, BUFSZ);
     fgets(buf, BUFSZ - 1, stdin);
     buf[strcspn(buf, "\n")] = 0;
     serverCommand = commandInterpreter(buf);
     if (serverCommand.send_server)
     {
-      sendMessage(s, serverCommand.message);
+      sendMessage(serverSocket, serverCommand.message);
     }
     else
     {
@@ -134,6 +153,6 @@ int main(int argc, char *argv[])
     }
   }
 
-  close(s);
+  close(serverSocket);
   exit(EXIT_SUCCESS);
 }

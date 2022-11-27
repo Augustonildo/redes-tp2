@@ -1,6 +1,7 @@
 #pragma once
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #define BUFSZ 1024
 
