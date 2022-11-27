@@ -73,6 +73,8 @@ response addNewEquipment(int clientSocket)
     }
   }
 
+  usleep(1000); // Sleep between messages
+
   memset(msg, 0, BUFSZ);
   sprintf(msg, "%02d", RES_LIST);
   for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
