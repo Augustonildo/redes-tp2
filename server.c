@@ -64,14 +64,27 @@ response addNewEquipment(int clientSocket)
   char msg[BUFSZ];
   memset(msg, 0, BUFSZ);
   sprintf(msg, "%02d %02d\n", RES_ADD, newId);
-
   for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
   {
-    if (equipments[i].installed && equipments[i].id != newId)
+    if (equipments[i].installed)
     {
       sendMessage(equipments[i].socket, msg);
     }
   }
+
+  memset(msg, 0, BUFSZ);
+  sprintf(msg, "%02d", RES_LIST);
+  for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
+  {
+    if (equipments[i].installed)
+    {
+      char installedId[BUFSZ];
+      sprintf(installedId, " %02d", equipments[i].id);
+      strcat(msg, installedId);
+    }
+  }
+  strcat(msg, "\n");
+  sendMessage(equipments[newId - 1].socket, msg);
 
   return resolveHandler(msg);
 }
@@ -145,7 +158,6 @@ void *client_thread(void *data)
     buf[strcspn(buf, "\n")] = 0;
 
     response = handleCommands(buf, cdata->csock);
-    sendMessage(cdata->csock, response.message);
 
     if (response.endConnection)
     {

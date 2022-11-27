@@ -36,7 +36,7 @@ control commandInterpreter(char *command)
     serverCommand.send_server = 0;
     for (int i = 0; i < MAX_EQUIPMENT_NUMBER; i++)
     {
-      if (equipmentsInstalled[i])
+      if (equipmentsInstalled[i] && equipmentId != (i + 1))
         printf("%02d ", i + 1);
     }
   }
@@ -66,6 +66,7 @@ void handleResponse(char *response)
   case RES_ADD:
     splittedResponse = strtok(NULL, " ");
     int receivedId = atoi(splittedResponse);
+    equipmentsInstalled[receivedId - 1] = 1;
     if (equipmentId == 0)
     {
       equipmentId = receivedId;
@@ -73,14 +74,19 @@ void handleResponse(char *response)
     }
     else
     {
-      equipmentsInstalled[receivedId - 1] = 1;
       printf("Equipment %02d added\n", receivedId);
     }
     return;
   case RES_LIST:
-    // todo something
+    splittedResponse = strtok(NULL, " ");
+    while (splittedResponse != NULL)
+    {
+      equipmentsInstalled[atoi(splittedResponse) - 1] = 1;
+      splittedResponse = strtok(NULL, " ");
+    }
+    return;
   case RES_INF:
-    // todo something
+  // todo something
   case ERROR:
     splittedResponse = strtok(NULL, " ");
     int errorCode = atoi(splittedResponse) - 1;
