@@ -131,15 +131,15 @@ response requestInformation(int sourceId, int destineId)
     printf("Equipment %02d not found\n", sourceId);
     sprintf(msg, "%02d %02d", ERROR, SOURCE_NOT_FOUND);
     sendMessage(equipments[sourceId - 1].socket, msg);
-    return exitHandler("Error");
+    return resolveHandler("Not found");
   }
 
   if (!equipments[destineId - 1].installed)
   {
     printf("Equipment %02d not found\n", destineId);
-    sprintf(msg, "%02d %02d", ERROR, DESTINE_NOT_FOUND);
-    sendMessage(equipments[destineId - 1].socket, msg);
-    return exitHandler("Error");
+    sprintf(msg, "%02d %02d", ERROR, TARGET_NOT_FOUND);
+    sendMessage(equipments[sourceId - 1].socket, msg);
+    return resolveHandler("Not found");
   }
 
   sprintf(msg, "%02d %02d %02d", REQ_INF, sourceId, destineId);
@@ -156,15 +156,15 @@ response informationResult(int sourceId, int destineId, float temperature)
     printf("Equipment %02d not found\n", sourceId);
     sprintf(msg, "%02d %02d", ERROR, SOURCE_NOT_FOUND);
     sendMessage(equipments[sourceId - 1].socket, msg);
-    return exitHandler("Error");
+    return resolveHandler("Not found");
   }
 
   if (!equipments[destineId - 1].installed)
   {
     printf("Equipment %02d not found\n", destineId);
-    sprintf(msg, "%02d %02d", ERROR, DESTINE_NOT_FOUND);
+    sprintf(msg, "%02d %02d", ERROR, TARGET_NOT_FOUND);
     sendMessage(equipments[destineId - 1].socket, msg);
-    return exitHandler("Error");
+    return resolveHandler("Not found");
   }
 
   sprintf(msg, "%02d %02d %02d %.2f", RES_INF, sourceId, destineId, temperature);
