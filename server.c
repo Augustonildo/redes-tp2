@@ -122,11 +122,20 @@ response removeEquipment(int id)
   return exitHandler("Success");
 }
 
+int isValidId(int id)
+{
+  if (id < 0)
+    return 0;
+  if (id > MAX_EQUIPMENT_NUMBER)
+    return 0;
+  return 1;
+}
+
 response requestInformation(int sourceId, int destineId)
 {
   char msg[BUFSZ];
   memset(msg, 0, BUFSZ);
-  if (!equipments[sourceId - 1].installed)
+  if (!isValidId(sourceId) || !equipments[sourceId - 1].installed)
   {
     printf("Equipment %02d not found\n", sourceId);
     sprintf(msg, "%02d %02d", ERROR, SOURCE_NOT_FOUND);
@@ -134,7 +143,7 @@ response requestInformation(int sourceId, int destineId)
     return resolveHandler("Not found");
   }
 
-  if (!equipments[destineId - 1].installed)
+  if (!isValidId(destineId) || !equipments[destineId - 1].installed)
   {
     printf("Equipment %02d not found\n", destineId);
     sprintf(msg, "%02d %02d", ERROR, TARGET_NOT_FOUND);
@@ -151,7 +160,7 @@ response informationResult(int sourceId, int destineId, float temperature)
 {
   char msg[BUFSZ];
   memset(msg, 0, BUFSZ);
-  if (!equipments[sourceId - 1].installed)
+  if (!isValidId(sourceId) || !equipments[sourceId - 1].installed)
   {
     printf("Equipment %02d not found\n", sourceId);
     sprintf(msg, "%02d %02d", ERROR, SOURCE_NOT_FOUND);
@@ -159,11 +168,11 @@ response informationResult(int sourceId, int destineId, float temperature)
     return resolveHandler("Not found");
   }
 
-  if (!equipments[destineId - 1].installed)
+  if (!isValidId(destineId) || !equipments[destineId - 1].installed)
   {
     printf("Equipment %02d not found\n", destineId);
     sprintf(msg, "%02d %02d", ERROR, TARGET_NOT_FOUND);
-    sendMessage(equipments[destineId - 1].socket, msg);
+    sendMessage(equipments[sourceId - 1].socket, msg);
     return resolveHandler("Not found");
   }
 

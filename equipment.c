@@ -132,12 +132,12 @@ void handleResponse(char *response)
     splittedResponse = strtok(NULL, " ");
     int errorCode = atoi(splittedResponse);
     printf("%s\n", ERROR_MESSAGES[errorCode - 1]);
-
     if (errorCode == LIMIT_EXCEEDED)
     {
       close(serverSocket);
       exit(EXIT_SUCCESS);
     }
+    return;
   case OK:
     splittedResponse = strtok(NULL, " ");
     int destineId = atoi(splittedResponse);
